@@ -50,12 +50,6 @@ class SB_OT_update_image(bpy.types.Operator, ModalExecuteMixin):
         img = None
         w, h, name, frame, flags, pixels = self.args
 
-        # convert data to blender accepted floats
-        pixels = np.float32(pixels) / 255.0
-        # flip y axis ass backwards
-        pixels.shape = (h, pixels.size // h)
-        pixels = pixels[::-1,:].ravel()
-
         for img in bpy.data.images:
             if name == img.sb_props.sync_name:
 
@@ -76,13 +70,15 @@ class SB_OT_update_image(bpy.types.Operator, ModalExecuteMixin):
                 if resend_uv:
                     addon.watch.resend() # call after changing the flags
 
+                pixels_float = util.aseprite_pixels_to_image(img, pixels, (w, h))
+
                 # change blender data
                 try:
                     # version >= 2.83; this is much faster
-                    img.pixels.foreach_set(pixels)
+                    img.pixels.foreach_set(pixels_float)
                 except AttributeError:
                     # version < 2.83
-                    img.pixels[:] = pixels
+                    img.pixels[:] = pixels_float
 
                 img.update()
                 # [#12] for some users viewports do not update from update() alone

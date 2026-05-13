@@ -26,10 +26,19 @@ import os
 import tempfile
 import bpy
 import re
+import numpy as np
 from typing import Collection
 from contextlib import contextmanager
 
 from .addon import addon
+
+try:
+    import PyOpenColorIO as ocio
+except ImportError:
+    ocio = None
+
+
+_ocio_processors = {}
 
 def unique_name(name:str, collection:Collection[str]) -> str:
     """Imitate blender behavior for ID names. Returns the name, possibly with a numeric suffix (e.g .001), so that it doesn't match any other strings in the collection"""
@@ -75,6 +84,47 @@ def pack_empty_png(image:bpy.types.Image):
     image.filepath_raw = ""
 
     os.remove(temp)
+
+
+def _scene_linear_processor(colorspace:str):
+    if ocio is None or not colorspace or colorspace == "scene_linear":
+        return None
+
+    config = ocio.GetCurrentConfig()
+    key = (config.getCacheID(), colorspace)
+
+    if key not in _ocio_processors:
+        try:
+            _ocio_processors[key] = config.getProcessor(colorspace, "scene_linear").getDefaultCPUProcessor()
+        except Exception:
+            _ocio_processors[key] = False
+
+    processor = _ocio_processors[key]
+    return None if processor is False else processor
+
+
+def aseprite_pixels_to_image(image:bpy.types.Image, pixels, size):
+    """Convert Aseprite's 8-bit RGBA bytes into Blender's scene-linear image buffer."""
+    w, h = size
+    pixels = np.asarray(pixels, dtype=np.float32)
+    pixels.shape = (h, w, 4)
+    pixels /= 255.0
+    pixels = pixels[::-1, :, :].copy()
+
+    if image.colorspace_settings.is_data:
+        return pixels.ravel()
+
+    flat = pixels.ravel()
+    processor = _scene_linear_processor(image.colorspace_settings.name)
+
+    if processor:
+        processor.applyRGBA(flat)
+    else:
+        # Direct pixel writes bypass Blender's image-load color management.
+        rgb = pixels[:, :, :3]
+        rgb[:] = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+
+    return flat
 
 
 def image_nodata(image:bpy.types.Image) -> bool:

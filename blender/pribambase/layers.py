@@ -1,12 +1,11 @@
 import bpy
 from bpy.app.translations import pgettext as tr
 
-import numpy as np
 from itertools import chain
 from typing import List, Tuple
 
 from .ase import BlendMode
-from .util import pack_empty_png
+from .util import pack_empty_png, aseprite_pixels_to_image
 
 
 def create_node_helper():
@@ -348,10 +347,7 @@ def update_images(tree:bpy.types.ShaderNodeTree, sprite_name:str, layers:List[Tu
             if image.size != (w, h):
                 image.scale(w, h)
             
-            pixels = np.float32(pixels) / 255.0
-            # flip y axis ass backwards
-            pixels.shape = (h, pixels.size // h)
-            pixels = pixels[::-1,:].ravel()
+            pixels = aseprite_pixels_to_image(image, pixels, (w, h))
 
             # change blender data
             try:
