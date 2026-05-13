@@ -12,7 +12,6 @@ This fork is being reorganized as an independently maintained codebase.
 
 - `blender/pribambase/` contains the Blender extension package.
 - `aseprite-extension/` contains the separately installed Aseprite extension package and install notes.
-- `tasks.py` is a legacy build script from the previous layout and is not yet the source of truth for the new packaging flow.
 
 ## Current State
 
@@ -27,7 +26,7 @@ The repository split and Aseprite source recovery are done. The Blender package 
 ## Build Notes
 
 - Downloaded wheel sources are pinned in `blender/requirements-wheels.txt`.
-- The extension package is currently Windows-only; Linux and macOS wheels are no longer bundled.
+- The extension package is currently Windows-only.
 - Build the Blender extension from `blender/pribambase/`.
 - Use `blender --command extension build --split-platforms` to generate platform-specific zip files.
 
