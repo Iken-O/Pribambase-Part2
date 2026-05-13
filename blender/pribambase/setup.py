@@ -7,6 +7,8 @@ from subprocess import Popen
 
 from .addon import addon
 
+ASEPRITE_EXTENSION_URL = "https://github.com/Iken-O/Pribambase-Part2/tree/main/aseprite-extension"
+
 
 class SB_OT_setup(bpy.types.Operator):
     bl_idname = "pribambase.setup"
@@ -14,7 +16,9 @@ class SB_OT_setup(bpy.types.Operator):
     bl_description = "Install an extension to Aseprite, that makes it possible to communicate with Blender"
 
     def execute(self, context):
-        where = path.join(path.dirname(__file__), "aseprite")
+        where = path.abspath(path.join(path.dirname(__file__), "..", "..", "aseprite-extension"))
+        if not path.isdir(where):
+            where = ASEPRITE_EXTENSION_URL
         self.report({'INFO'}, f"Opening '{where}'...")
         webbrowser.open(where)
         return {'FINISHED'}
