@@ -7,7 +7,7 @@ from subprocess import Popen
 
 from .addon import addon
 
-ASEPRITE_EXTENSION_URL = "https://github.com/Iken-O/Pribambase-Part2/tree/main/aseprite-extension"
+ASEPRITE_EXTENSION_URL = "https://github.com/Iken-O/Pribambase-Part2/releases"
 
 
 class SB_OT_setup(bpy.types.Operator):
@@ -47,7 +47,9 @@ class SB_OT_launch(bpy.types.Operator):
             if addon.server_up:
                 bpy.ops.pribambase.server_stop() # fixes some networking issues after disconnect
 
-            bpy.ops.pribambase.server_start()
+            result = bpy.ops.pribambase.server_start()
+            if 'FINISHED' not in result:
+                return {'CANCELLED'}
 
             if self.wait_connect:
                 # If there's already an instance ready to connect, let it do so. That feels somewhat

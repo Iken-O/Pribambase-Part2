@@ -276,7 +276,11 @@ class SB_OT_server_start(bpy.types.Operator):
 
 
     def execute(self, context):
-        addon.start_server()
+        try:
+            addon.start_server()
+        except RuntimeError as exc:
+            self.report({'ERROR'}, str(exc))
+            return {'CANCELLED'}
         return {'FINISHED'}
 
 

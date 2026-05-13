@@ -10,17 +10,26 @@ This fork is being reorganized as an independently maintained codebase.
 
 ## Repository Layout
 
-- `blender/pribambase/` contains the Blender add-on package.
+- `blender/pribambase/` contains the Blender extension package.
 - `aseprite-extension/` contains the separately installed Aseprite extension package and install notes.
 - `tasks.py` is a legacy build script from the previous layout and is not yet the source of truth for the new packaging flow.
 
 ## Current State
 
-The repository split is the first restructuring step.
+The repository split and Aseprite source recovery are done. The Blender package now has extension metadata and bundled Windows wheels for Blender 4.2+.
 
-- The Blender add-on still uses the legacy bundled-wheel layout under `blender/pribambase/thirdparty/`.
-- The Blender 4.2+ `blender_manifest.toml` migration is the next step.
-- The editable Aseprite extension source tree has not been reconstructed yet; the packaged `.aseprite-extension` file is stored in `aseprite-extension/`.
+- The Blender extension root is `blender/pribambase/`.
+- `blender_manifest.toml` and `wheels/` are in place for Blender's extension system.
+- Windows wheel bundles cover both Python 3.11 and Python 3.13 builds.
+- The Aseprite companion source now lives directly in `aseprite-extension/`.
+- Release artifacts should be generated from source instead of stored in the repository.
+
+## Build Notes
+
+- Downloaded wheel sources are pinned in `blender/requirements-wheels.txt`.
+- The extension package is currently Windows-only; Linux and macOS wheels are no longer bundled.
+- Build the Blender extension from `blender/pribambase/`.
+- Use `blender --command extension build --split-platforms` to generate platform-specific zip files.
 
 ## Legacy Links
 

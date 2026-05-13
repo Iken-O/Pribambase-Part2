@@ -18,13 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# import wheel deps
-import sys
-import os.path as path
-from glob import glob
-thirdparty = path.join(path.dirname(__file__), "thirdparty", "*.whl")
-sys.path += glob(thirdparty)
-
 from bpy.app.handlers import persistent
 
 from .async_loop import *
@@ -40,14 +33,7 @@ from .setup import *
 from .addon import addon
 
 
-bl_info = {
-    "name": "Pribambase",
-    "author": "lampysprites",
-    "description": "Paint pixelart textures in Blender using Aseprite",
-    "blender": (2, 80, 0),
-    "version": (2, 6, 1),
-    "category": "Paint"
-}
+VERSION = (2, 6, 1)
 
 
 classes = (

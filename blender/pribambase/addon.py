@@ -51,6 +51,9 @@ class Addon:
 
     def start_server(self):
         """Start server instance"""
+        if not getattr(bpy.app, "online_access", True):
+            raise RuntimeError("Enable Online Access to start the Aseprite sync server")
+
         if self._server:
             raise RuntimeError(f"A server is already created at {self._server.host}:{self._server.port}")
 
