@@ -29,6 +29,19 @@ The repository split and Aseprite source recovery are done. The Blender package 
 - The extension package is currently Windows-only.
 - Build the Blender extension from `blender/pribambase/`.
 - Use `blender --command extension build --split-platforms` to generate platform-specific zip files.
+- Use `scripts/build-release.ps1` to build the Blender extension and package the Aseprite extension into one release output directory.
+
+## Release Packaging
+
+From the repo root:
+
+```powershell
+.\scripts\build-release.ps1
+```
+
+- Default output is `dist/release/`.
+- Pass `-BlenderPath 'C:\path\to\blender.exe'` to override Blender discovery.
+- Pass `-Clean` to remove previous release artifacts before rebuilding.
 
 ## Legacy Links
 

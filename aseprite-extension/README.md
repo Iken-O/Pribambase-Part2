@@ -19,6 +19,7 @@ This directory contains the source for the separately installed Aseprite compani
 - Package the contents of this directory into a zip archive.
 - Rename the archive to `pribambase_aseprite.aseprite-extension`.
 - Zip the files in this directory directly, not the parent folder.
+- Or run `..\scripts\build-release.ps1` from the repo root to package both addons at once.
 
 ## Relationship to Blender
 
