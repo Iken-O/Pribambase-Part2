@@ -39,6 +39,9 @@ except ImportError:
 
 
 _ocio_processors = {}
+_reloadable_image_extensions = frozenset({
+    ".bmp", ".gif", ".ico", ".jpeg", ".jpg", ".pcx", ".png", ".tga", ".webp"
+})
 
 def unique_name(name:str, collection:Collection[str]) -> str:
     """Imitate blender behavior for ID names. Returns the name, possibly with a numeric suffix (e.g .001), so that it doesn't match any other strings in the collection"""
@@ -67,6 +70,20 @@ def refresh():
     for win in ctx.window_manager.windows:
         for area in win.screen.areas:
             area.tag_redraw()
+
+
+def image_pixels_set(image:bpy.types.Image, pixels):
+    image.pixels.foreach_set(pixels)
+
+
+def is_reloadable_image(image:bpy.types.Image) -> bool:
+    """True when Blender can reload the image from an on-disk file it understands."""
+    filepath = bpy.path.abspath(image.filepath_from_user())
+    if not filepath:
+        return False
+
+    filepath = os.path.normpath(filepath)
+    return os.path.exists(filepath) and os.path.splitext(filepath)[1].lower() in _reloadable_image_extensions
 
 
 def pack_empty_png(image:bpy.types.Image):
@@ -103,13 +120,18 @@ def _scene_linear_processor(colorspace:str):
     return None if processor is False else processor
 
 
-def aseprite_pixels_to_image(image:bpy.types.Image, pixels, size):
-    """Convert Aseprite's 8-bit RGBA bytes into Blender's scene-linear image buffer."""
+def aseprite_pixels_to_buffer(pixels, size):
+    """Convert Aseprite's 8-bit RGBA bytes into Blender's flipped 0..1 image buffer."""
     w, h = size
     pixels = np.asarray(pixels, dtype=np.float32)
     pixels.shape = (h, w, 4)
     pixels /= 255.0
-    pixels = pixels[::-1, :, :].copy()
+    return pixels[::-1, :, :].copy()
+
+
+def aseprite_pixels_to_image(image:bpy.types.Image, pixels, size):
+    """Convert Aseprite's 8-bit RGBA bytes into Blender's scene-linear image buffer."""
+    pixels = aseprite_pixels_to_buffer(pixels, size)
 
     if image.colorspace_settings.is_data:
         return pixels.ravel()

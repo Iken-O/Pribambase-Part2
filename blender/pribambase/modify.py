@@ -71,29 +71,30 @@ class SB_OT_update_image(bpy.types.Operator, ModalExecuteMixin):
                     addon.watch.resend() # call after changing the flags
 
                 pixels_float = util.aseprite_pixels_to_image(img, pixels, (w, h))
+                refresh_packed = img.packed_file and not util.is_reloadable_image(img)
 
                 # change blender data
-                try:
-                    # version >= 2.83; this is much faster
-                    img.pixels.foreach_set(pixels_float)
-                except AttributeError:
-                    # version < 2.83
-                    img.pixels[:] = pixels_float
+                util.image_pixels_set(img, pixels_float)
 
                 img.update()
                 # [#12] for some users viewports do not update from update() alone
                 img.update_tag()
 
-                if addon.prefs.save_after_sync or img.sb_props.needs_save:
-                    if bpy.app.version >= (4, 0, 0): # fuck whoever on blender team keeps changing call signatures
+                if addon.prefs.save_after_sync or img.sb_props.needs_save or refresh_packed:
+                    pixels_file = util.aseprite_pixels_to_buffer(pixels, (w, h)).ravel()
+                    util.image_pixels_set(img, pixels_file)
+
+                    try:
                         cor = context.copy()
                         cor["edit_image"] = img
                         with context.temp_override(**cor):
                             bpy.ops.image.save()
                             bpy.ops.image.reload()
-                    else:
-                        bpy.ops.image.save({"edit_image": img})
-                        bpy.ops.image.reload({"edit_image": img})
+                    except Exception:
+                        util.image_pixels_set(img, pixels_float)
+                        img.update()
+                        img.update_tag()
+                        raise
                     img.sb_props.needs_save = False
 
         util.refresh()

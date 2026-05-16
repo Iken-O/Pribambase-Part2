@@ -5,7 +5,7 @@ from itertools import chain
 from typing import List, Tuple
 
 from .ase import BlendMode
-from .util import pack_empty_png, aseprite_pixels_to_image
+from .util import pack_empty_png, aseprite_pixels_to_image, image_pixels_set
 
 
 def create_node_helper():
@@ -350,16 +350,11 @@ def update_images(tree:bpy.types.ShaderNodeTree, sprite_name:str, layers:List[Tu
             pixels = aseprite_pixels_to_image(image, pixels, (w, h))
 
             # change blender data
-            try:
-                # version >= 2.83; this is much faster
-                image.pixels.foreach_set(pixels)
-            except AttributeError:
-                # version < 2.83
-                image.pixels[:] = pixels
+            image_pixels_set(image, pixels)
         else:
             if not image_created:
                 image.scale(1, 1)
-                image.pixels.foreach_set([0.0, 0.0, 0.0, 0.0])
+                image_pixels_set(image, [0.0, 0.0, 0.0, 0.0])
 
         image.update()
         image.update_tag()
