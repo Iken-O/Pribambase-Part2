@@ -33,7 +33,7 @@ from .setup import *
 from .addon import addon
 
 
-VERSION = (2, 6, 1)
+VERSION = (2, 6, 2)
 
 
 classes = (
