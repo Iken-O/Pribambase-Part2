@@ -27,6 +27,9 @@ from bpy.app.handlers import persistent
 
 log = logging.getLogger(__name__)
 
+# Keep websocket handling responsive without busy-spinning Blender's UI thread.
+ASYNC_LOOP_INTERVAL = 0.01
+
 # Keeps track of whether a loop-kicking operator is already running.
 _stop_after_this_kick = False
 
@@ -52,11 +55,8 @@ def setup_asyncio_executor():
 
 
 @persistent
-def kick_async_loop() -> bool:
-    """Performs a single iteration of the asyncio event loop.
-
-    :return: whether the asyncio loop should stop after this kick.
-    """
+def kick_async_loop():
+    """Perform one asyncio event loop iteration for Blender's timer."""
 
     global _stop_after_this_kick
     loop = asyncio.get_event_loop()
@@ -67,7 +67,7 @@ def kick_async_loop() -> bool:
 
     if loop.is_closed():
         log.warning('loop closed, stopping immediately.')
-        return True
+        return None
 
     all_tasks = None
     if bpy.app.version >= (2, 92):
@@ -108,12 +108,17 @@ def kick_async_loop() -> bool:
     loop.stop()
     loop.run_forever()
 
-    return 0.00001
+    return ASYNC_LOOP_INTERVAL
 
 
 def ensure_async_loop():
+    global _stop_after_this_kick
+
     log.debug('Starting asyncio loop')
-    bpy.app.timers.register(kick_async_loop, persistent=True)
+    _stop_after_this_kick = False
+
+    if not bpy.app.timers.is_registered(kick_async_loop):
+        bpy.app.timers.register(kick_async_loop, first_interval=ASYNC_LOOP_INTERVAL, persistent=True)
 
 
 def erase_async_loop():
