@@ -15,18 +15,18 @@ This fork is being reorganized as an independently maintained codebase.
 
 ## Current State
 
-The repository split and Aseprite source recovery are done. The Blender package now has extension metadata and bundled Windows wheels for Blender 4.2+.
+The repository split and Aseprite source recovery are done. The Blender package now has extension metadata and bundled Windows x64 and Linux x64 wheels for Blender 4.2+.
 
 - The Blender extension root is `blender/pribambase/`.
 - `blender_manifest.toml` and `wheels/` are in place for Blender's extension system.
-- Windows wheel bundles cover both Python 3.11 and Python 3.13 builds.
+- Windows x64 and Linux x64 wheel bundles cover both Python 3.11 and Python 3.13 builds.
 - The Aseprite companion source now lives directly in `aseprite-extension/`.
 - Release artifacts should be generated from source instead of stored in the repository.
 
 ## Build Notes
 
 - Downloaded wheel sources are pinned in `blender/requirements-wheels.txt`.
-- The extension package is currently Windows-only.
+- The extension package currently targets Windows x64 and Linux x64.
 - Build the Blender extension from `blender/pribambase/`.
 - Use `blender --command extension build --split-platforms` to generate platform-specific zip files.
 - Use `scripts/build-release.ps1` to build the Blender extension and package the Aseprite extension into one release output directory.

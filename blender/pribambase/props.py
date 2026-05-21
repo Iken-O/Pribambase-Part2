@@ -50,10 +50,12 @@ def _find_aseprite(_self):
         "~/.steam/debian-installation/steamapps/common/Aseprite/aseprite",
         "/usr/bin/aseprite")
 
-    if exe and os.path.exists(exe):
-        return exe
-    else:
-        return next((p for p in lookup_paths if os.path.exists(p)), "")
+    if exe:
+        exe = os.path.expanduser(exe)
+        if os.path.exists(exe):
+            return exe
+
+    return next((p for p in map(os.path.expanduser, lookup_paths) if os.path.exists(p)), "")
 
 
 class SB_State(bpy.types.PropertyGroup):
