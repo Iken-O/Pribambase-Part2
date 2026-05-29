@@ -32,13 +32,6 @@ from contextlib import contextmanager
 
 from .addon import addon
 
-try:
-    import PyOpenColorIO as ocio
-except ImportError:
-    ocio = None
-
-
-_ocio_processors = {}
 _reloadable_image_extensions = frozenset({
     ".bmp", ".gif", ".ico", ".jpeg", ".jpg", ".pcx", ".png", ".tga", ".webp"
 })
@@ -103,23 +96,6 @@ def pack_empty_png(image:bpy.types.Image):
     os.remove(temp)
 
 
-def _scene_linear_processor(colorspace:str):
-    if ocio is None or not colorspace or colorspace == "scene_linear":
-        return None
-
-    config = ocio.GetCurrentConfig()
-    key = (config.getCacheID(), colorspace)
-
-    if key not in _ocio_processors:
-        try:
-            _ocio_processors[key] = config.getProcessor(colorspace, "scene_linear").getDefaultCPUProcessor()
-        except Exception:
-            _ocio_processors[key] = False
-
-    processor = _ocio_processors[key]
-    return None if processor is False else processor
-
-
 def aseprite_pixels_to_buffer(pixels, size):
     """Convert Aseprite's 8-bit RGBA bytes into Blender's flipped 0..1 image buffer."""
     w, h = size
@@ -130,23 +106,12 @@ def aseprite_pixels_to_buffer(pixels, size):
 
 
 def aseprite_pixels_to_image(image:bpy.types.Image, pixels, size):
-    """Convert Aseprite's 8-bit RGBA bytes into Blender's scene-linear image buffer."""
-    pixels = aseprite_pixels_to_buffer(pixels, size)
+    """Convert Aseprite's 8-bit RGBA bytes into Blender's Image.pixels buffer.
 
-    if image.colorspace_settings.is_data:
-        return pixels.ravel()
-
-    flat = pixels.ravel()
-    processor = _scene_linear_processor(image.colorspace_settings.name)
-
-    if processor:
-        processor.applyRGBA(flat)
-    else:
-        # Direct pixel writes bypass Blender's image-load color management.
-        rgb = pixels[:, :, :3]
-        rgb[:] = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
-
-    return flat
+    Image.pixels should receive the same file/display values Blender exposes
+    for a normally loaded PNG. Pre-linearizing here makes synced sprites dark.
+    """
+    return aseprite_pixels_to_buffer(pixels, size).ravel()
 
 
 def image_nodata(image:bpy.types.Image) -> bool:

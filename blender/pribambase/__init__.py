@@ -33,9 +33,6 @@ from .setup import *
 from .addon import addon
 
 
-VERSION = (2, 6, 4)
-
-
 classes = (
     # Property types
     SB_State,
