@@ -51,7 +51,7 @@ class SB_OT_update_image(bpy.types.Operator, ModalExecuteMixin):
         w, h, name, frame, flags, pixels = self.args
 
         for img in bpy.data.images:
-            if name == img.sb_props.sync_name:
+            if name == img.sb_props.sync_name and not img.sb_props.is_layer:
 
                 if image_nodata(img):
                     # load *some* data so that the image can be updated

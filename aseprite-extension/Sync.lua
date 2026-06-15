@@ -359,6 +359,7 @@ else
         if connected and spr ~= nil then
             local flags = syncList[name] or 0
             ws:sendBinary(messageImageLayers{ sprite=spr, name=name, frame=app.activeFrame, flags=flags })
+            ws:sendBinary(messageImage{ sprite=spr, name=name, frame=app.activeFrame, flags=flags })
         end
     end
 

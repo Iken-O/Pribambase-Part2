@@ -28,6 +28,31 @@ def legacy_tree(sprite_name:str) -> bpy.types.ShaderNodeTree:
     ), None)
 
 
+def ensure_flat_image(sprite_name:str, stored_source:str, flags:Set[str],
+        sprite_size:Tuple[int, int]) -> bpy.types.Image:
+    image = next((
+        candidate for candidate in bpy.data.images
+        if not candidate.sb_props.is_layer
+        and not candidate.sb_props.is_sheet
+        and path.normpath(candidate.sb_props.source_abs) == path.normpath(sprite_name)
+    ), None)
+
+    if image is None:
+        image = bpy.data.images.new(
+            bpy.path.basename(sprite_name),
+            sprite_size[0],
+            sprite_size[1],
+            alpha=True)
+        image.sb_props.needs_save = True
+        pack_empty_png(image)
+
+    image.sb_props.source = stored_source
+    image.sb_props.sync_flags = flags
+    if image.size != sprite_size:
+        image.scale(*sprite_size)
+    return image
+
+
 def layer_pixels_to_canvas(pixels, bounds:Tuple[int, int, int, int],
         canvas_size:Tuple[int, int]) -> np.ndarray:
     """Place an Aseprite cel in a transparent full-size canvas."""
@@ -104,6 +129,11 @@ def update_layer_images(sprite_name:str, sprite_width:int, sprite_height:int,
             np.zeros((sprite_height, sprite_width, 4), dtype=np.float32).ravel())
         image.update()
         image.update_tag()
+        ensure_flat_image(
+            sprite_name,
+            stored_source,
+            flags,
+            (sprite_width, sprite_height))
         return [image]
 
     for idx, blend, opacity, group, x, y, w, h, name, pixels in layers:
@@ -153,4 +183,9 @@ def update_layer_images(sprite_name:str, sprite_width:int, sprite_height:int,
         if image not in used:
             bpy.data.images.remove(image)
 
+    ensure_flat_image(
+        sprite_name,
+        stored_source,
+        flags,
+        (sprite_width, sprite_height))
     return updated
