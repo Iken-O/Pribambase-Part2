@@ -200,15 +200,33 @@ else
         return flags
     end
 
+    local function isSyncExcluded(layer)
+        return layer.isReference or string.sub(layer.name, 1, 1) == "_"
+    end
+
+    local function hasSyncExcludedLayers(layers)
+        for _,layer in ipairs(layers) do
+            if isSyncExcluded(layer) then
+                return true
+            end
+            if layer.isGroup and hasSyncExcludedLayers(layer.layers) then
+                return true
+            end
+        end
+        return false
+    end
+
     local function _co_ilayers(layers, i, includeGroups)
         for _,layer in ipairs(layers) do
-            if layer.isGroup then
+            if isSyncExcluded(layer) then
+                -- Excluding a group also excludes its complete subtree.
+            elseif layer.isGroup then
                 if includeGroups then
                     coroutine.yield(i, layer)
                     i = i + 1
                 end
                 i = _co_ilayers(layer.layers, i, includeGroups)
-            elseif not layer.isReference then
+            else
                 coroutine.yield(i, layer)
                 i = i + 1
             end
@@ -230,6 +248,8 @@ else
         May have multiple returns, WebSocket:send() concatenates its arguments
     ]]
 
+    local drawLayerTree
+
     local function messageActiveSprite(opts)
         local id = string.byte('A')
         local name = opts.name
@@ -247,7 +267,13 @@ else
         end
 
         buf:clear()
-        buf:drawSprite(sprite, opts.frame)
+        if hasSyncExcludedLayers(sprite.layers) then
+            for _,layer in ipairs(sprite.layers) do
+                drawLayerTree(buf, layer, opts.frame, sprite.width, sprite.height)
+            end
+        else
+            buf:drawSprite(sprite, opts.frame)
+        end
 
         return string.pack("<BHHHHs4I4", id, buf.width, buf.height, opts.frame.frameNumber - 1, flags, name, buf.rowStride * buf.height), buf.bytes
     end
@@ -265,10 +291,17 @@ else
 
         local nframes = #sprite.frames
         local size = buf.rowStride * buf.height
+        local customRender = hasSyncExcludedLayers(sprite.layers)
 
         for i,frame in ipairs(sprite.frames) do
             buf:clear()
-            buf:drawSprite(sprite, i)
+            if customRender then
+                for _,layer in ipairs(sprite.layers) do
+                    drawLayerTree(buf, layer, frame, sprite.width, sprite.height)
+                end
+            else
+                buf:drawSprite(sprite, i)
+            end
 
             _frames[2 * i - 1] = string.pack("<I4", size)
             _frames[2 * i] = buf.bytes
@@ -316,17 +349,31 @@ else
         local flags = opts.flags
         local id = string.byte('L')
 
-        local nlayers = 1
-        local group = 0 -- only top level group count. flag increments each time one is encountered, so all layers with the same flag belong to the same top-level group
+        local nlayers = 0
+        local group = 0
+        local groupLayers = {}
+
+        for _,layer in ipairs(sprite.layers) do
+            if layer.isGroup and not isSyncExcluded(layer) then
+                group = group + 1
+                groupLayers[group] = layer
+                _frames[group] = string.pack("<s4", layer.name)
+            end
+        end
 
         for i,layer in ilayers(sprite) do
             local groupVal = 0
             if not docobjEquals(layer.parent, sprite) then
-                if docobjEquals(layer.parent.parent, sprite) and layer.stackIndex == 1 then
-                    group = group + 1
-                    _frames[group] = string.pack("<s4", layer.parent.name)
+                local topGroup = layer.parent
+                while not docobjEquals(topGroup.parent, sprite) do
+                    topGroup = topGroup.parent
                 end
-                groupVal = group
+                for groupIndex,groupLayer in ipairs(groupLayers) do
+                    if docobjEquals(topGroup, groupLayer) then
+                        groupVal = groupIndex
+                        break
+                    end
+                end
             end
             
             local opacity = layer.isVisible and layer.opacity or 0
@@ -357,8 +404,8 @@ else
         return string.pack("<BHHs4HI4I4", id, sprite.width, sprite.height, name, flags, group, nlayers), table.concat(_frames, ""), table.unpack(_infos)
     end
 
-    local function drawLayerTree(destination, layer, frame, width, height)
-        if not layer.isVisible or layer.isReference then
+    drawLayerTree = function(destination, layer, frame, width, height)
+        if not layer.isVisible or isSyncExcluded(layer) then
             return
         end
 
@@ -367,7 +414,7 @@ else
             for _,child in ipairs(layer.layers) do
                 drawLayerTree(groupImage, child, frame, width, height)
             end
-            destination:drawImage(groupImage, Point(0, 0), layer.opacity, layer.blendMode)
+            destination:drawImage(groupImage)
             return
         end
 
@@ -396,7 +443,7 @@ else
         end
 
         for _,layer in ipairs(sprite.layers) do
-            if not layer.isReference then
+            if not isSyncExcluded(layer) then
                 count = count + 1
 
                 buf:clear()
