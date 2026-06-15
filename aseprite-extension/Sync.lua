@@ -43,6 +43,12 @@ else
     local BIT_SYNC_SHEET = 1
     local BIT_SYNC_SHOWUV = 1 << 1
     local BIT_SYNC_LAYERS = 1 << 2
+    local BIT_SYNC_TOP_LEVEL = 1 << 3
+
+    local SYNC_MODE_FLAT = "Flattened"
+    local SYNC_MODE_LAYERS = "Individual Layers"
+    local SYNC_MODE_TOP_LEVEL = "Top-Level Items"
+    local SYNC_MODES = { SYNC_MODE_FLAT, SYNC_MODE_LAYERS, SYNC_MODE_TOP_LEVEL }
 
     local settings = pribambase_settings
     local ws
@@ -51,7 +57,8 @@ else
     local blendfile = ""
     -- the list of texures open in blender, structured as { identifier:str=flags:int_bitfield }
     local syncList = {}
-    -- the list of currently open sprites ever synced, items structured as { blend:str(uid or file), animated:bool, showUV:bool, layers:bool }
+    -- the list of currently open sprites ever synced, items structured as
+    -- { blend:str(uid or file), animated:bool, showUV:bool, layers:bool, topLevel:bool }
     -- needed to a) avoid syncing same named texture to different docs b) (TODO) when blender is not available, store critical changes to process later
     local docList = {}
     -- map MessageID to handler callback
@@ -167,6 +174,30 @@ else
             name = string.gsub(name, "%d%d%d$", _repl_next)
         end
         return name
+    end
+
+    local function docSyncMode(doc)
+        if doc and doc.topLevel then
+            return SYNC_MODE_TOP_LEVEL
+        elseif doc and doc.layers then
+            return SYNC_MODE_LAYERS
+        end
+        return SYNC_MODE_FLAT
+    end
+
+    local function setDocSyncMode(doc, mode)
+        doc.layers = mode == SYNC_MODE_LAYERS
+        doc.topLevel = mode == SYNC_MODE_TOP_LEVEL
+    end
+
+    local function setSyncModeFlags(flags, mode)
+        flags = flags & ~BIT_SYNC_LAYERS & ~BIT_SYNC_TOP_LEVEL
+        if mode == SYNC_MODE_LAYERS then
+            return flags | BIT_SYNC_LAYERS
+        elseif mode == SYNC_MODE_TOP_LEVEL then
+            return flags | BIT_SYNC_TOP_LEVEL
+        end
+        return flags
     end
 
     local function _co_ilayers(layers, i, includeGroups)
@@ -326,6 +357,50 @@ else
         return string.pack("<BHHs4HI4I4", id, sprite.width, sprite.height, name, flags, group, nlayers), table.concat(_frames, ""), table.unpack(_infos)
     end
 
+    local function messageTopLevelItems(opts)
+        local sprite = opts.sprite
+        local name = opts.name or ""
+        local frameNumber = opts.frame.frameNumber
+        local flags = opts.flags
+        local id = string.byte('L')
+        local count = 0
+
+        if buf.width ~= sprite.width or buf.height ~= sprite.height then
+            buf:resize(sprite.width, sprite.height)
+        end
+
+        for topIndex,layer in ipairs(sprite.layers) do
+            if not layer.isReference then
+                count = count + 1
+                local copy = Sprite(sprite)
+
+                for copyIndex,copyLayer in ipairs(copy.layers) do
+                    copyLayer.isVisible = copyIndex == topIndex and layer.isVisible
+                end
+
+                buf:clear()
+                buf:drawSprite(copy, frameNumber)
+                copy:close()
+
+                _infos[2 * count - 1] = string.pack(
+                    "<HHHHhhHHs4I4",
+                    count - 1, 0, 255, 0,
+                    0, 0, sprite.width, sprite.height,
+                    layer.name, buf.rowStride * buf.height)
+                _infos[2 * count] = buf.bytes
+            end
+        end
+
+        for i=2*count+1,#_infos do
+            _infos[i] = nil
+        end
+        for i=1,#_frames do
+            _frames[i] = nil
+        end
+
+        return string.pack("<BHHs4HI4I4", id, sprite.width, sprite.height, name, flags, 0, count), table.unpack(_infos)
+    end
+
     local function messageChangeName(opts)
         return string.pack("<Bs4s4", string.byte('C'), opts.from, opts.to)
     end
@@ -363,6 +438,14 @@ else
         end
     end
 
+    local function sendTopLevelItems(name)
+        if connected and spr ~= nil then
+            local flags = syncList[name] or 0
+            ws:sendBinary(messageTopLevelItems{ sprite=spr, name=name, frame=app.activeFrame, flags=flags })
+            ws:sendBinary(messageImage{ sprite=spr, name=name, frame=app.activeFrame, flags=flags })
+        end
+    end
+
     local function sendSpritesheet(name)
         if connected and spr ~= nil then
             tag = ""
@@ -392,16 +475,28 @@ else
         else
             popup:entry{ id="name", text=unique_name(spr.filename or "Sprite"), focus=true }
         end
-        popup:check{ id="animated", text="Animated", onclick=function() popup:modify{ id="layers", visible = settings.layers and not popup.data.animated } end}
+        popup:check{ id="animated", text="Animated", onclick=function()
+            popup:modify{ id="syncMode", visible=settings.layers and not popup.data.animated }
+        end}
         popup:newrow()
-        popup:check{ id="layers", text="Layers", visible=settings.layers, onclick=function() popup:modify{ id="animated", visible = not popup.data.layers } end}
+        popup:combobox{
+            id="syncMode",
+            label="Image Mode",
+            option=SYNC_MODE_FLAT,
+            options=SYNC_MODES,
+            visible=settings.layers,
+            onchange=function()
+                popup:modify{ id="animated", visible=popup.data.syncMode == SYNC_MODE_FLAT }
+            end}
         popup:button{ id="cancel", text= "Cancel"}
         popup:button{ id="ok", text= "OK", focus=true}
         popup:show()
 
         if popup.data.ok then
-            docList[spr] = { blend=blendfile, animated=popup.data.animated, showUV=false, layers=popup.data.layers }
-            local flags = (popup.data.animated and BIT_SYNC_SHEET or 0) | (popup.data.layers and BIT_SYNC_LAYERS or 0)
+            local mode = popup.data.syncMode or SYNC_MODE_FLAT
+            docList[spr] = { blend=blendfile, animated=popup.data.animated, showUV=false }
+            setDocSyncMode(docList[spr], mode)
+            local flags = setSyncModeFlags(popup.data.animated and BIT_SYNC_SHEET or 0, mode)
 
             if file then
                 ws:sendBinary(messageNewTexture{ name="", path=spr.filename, flags=flags })
@@ -556,6 +651,8 @@ else
         if syncList[s] ~= nil and docList[spr] and docList[spr].blend == blendfile then
             if docList[spr].animated then
                 sendSpritesheet(s)
+            elseif docList[spr].topLevel then
+                sendTopLevelItems(s)
             elseif docList[spr].layers then
                 sendImageLayers(s)
             else
@@ -658,7 +755,8 @@ else
                         blend=blendfile, 
                         animated=(syncList[sf] & BIT_SYNC_SHEET ~= 0),
                         showUV=(syncList[sf] & BIT_SYNC_SHOWUV ~= 0),
-                        layers=(syncList[sf] & BIT_SYNC_LAYERS ~= 0)}
+                        layers=(syncList[sf] & BIT_SYNC_LAYERS ~= 0),
+                        topLevel=(syncList[sf] & BIT_SYNC_TOP_LEVEL ~= 0)}
                 end
                 sendActiveSprite(sf)
             else
@@ -788,13 +886,14 @@ else
                 docList[s] = { blend=blendfile, 
                     animated=(syncList[sf] & BIT_SYNC_SHEET ~= 0),
                     showUV=(syncList[sf] & BIT_SYNC_SHOWUV ~= 0),
-                    layers=(syncList[sf] & BIT_SYNC_LAYERS ~= 0)}
+                    layers=(syncList[sf] & BIT_SYNC_LAYERS ~= 0),
+                    topLevel=(syncList[sf] & BIT_SYNC_TOP_LEVEL ~= 0)}
             end
         end
 
         if spr and docList[spr] and (
                 (not dlg.data.animated and docList[spr].animated) or
-                (not dlg.data.layers and docList[spr].layers) or
+                (dlg.data.syncMode ~= docSyncMode(docList[spr])) or
                 (not dlg.data.showuv and docList[spr].showUV)) then
             synced = false
         end
@@ -827,7 +926,8 @@ else
                     blend=blendfile,
                     animated=(flags & BIT_SYNC_SHEET ~= 0),
                     showUV=(flags & BIT_SYNC_SHOWUV ~= 0),
-                    layers=(flags & BIT_SYNC_LAYERS ~= 0)}
+                    layers=(flags & BIT_SYNC_LAYERS ~= 0),
+                    topLevel=(flags & BIT_SYNC_TOP_LEVEL ~= 0)}
             end)
     end
 
@@ -853,7 +953,8 @@ else
                 blend=blendfile,
                 animated=(flags & BIT_SYNC_SHEET ~= 0),
                 showUV=(flags & BIT_SYNC_SHOWUV ~= 0),
-                layers=(flags & BIT_SYNC_LAYERS ~= 0)}
+                layers=(flags & BIT_SYNC_LAYERS ~= 0),
+                topLevel=(flags & BIT_SYNC_TOP_LEVEL ~= 0)}
 
             if app.activeSprite ~= opened then
                 app.activeSprite = opened
@@ -867,7 +968,8 @@ else
                     docList[s] = { blend=blendfile, 
                         animated=(flags & BIT_SYNC_SHEET ~= 0),
                         showUV=(flags & BIT_SYNC_SHOWUV ~= 0),
-                        layers=(flags & BIT_SYNC_LAYERS ~= 0)}
+                        layers=(flags & BIT_SYNC_LAYERS ~= 0),
+                        topLevel=(flags & BIT_SYNC_TOP_LEVEL ~= 0)}
                 end)
         end
     end
@@ -899,18 +1001,22 @@ else
 
                 local animated = flags & BIT_SYNC_SHEET ~= 0
                 local layers = flags & BIT_SYNC_LAYERS ~= 0
+                local topLevel = flags & BIT_SYNC_TOP_LEVEL ~= 0
                 local s = Sprite{fromFile=name}
-                local flags = syncList[name] or 0
                 if animated then
                     tag = ""
                     if app.activeTag ~= nil and not app.preferences.editor.play_all then
                         tag = app.activeTag.name
                     end
                     ws:sendBinary(messageSpritesheet{ sprite=s, name=name, frame=app.activeFrame, tag=tag })
+                elseif topLevel then
+                    ws:sendBinary(messageTopLevelItems{ sprite=s, name=name, frame=s.frames[1], flags=flags })
+                    ws:sendBinary(messageImage{ sprite=s, name=name, frame=s.frames[1], flags=flags })
                 elseif layers then
-                    ws:sendBinary(messageImageLayers{ sprite=s, name=name, frame=app.activeFrame, flags=flags })
+                    ws:sendBinary(messageImageLayers{ sprite=s, name=name, frame=s.frames[1], flags=flags })
+                    ws:sendBinary(messageImage{ sprite=s, name=name, frame=s.frames[1], flags=flags })
                 else
-                    ws:sendBinary(messageImage{ sprite=s, name=name, frame=app.activeFrame , flags=flags})
+                    ws:sendBinary(messageImage{ sprite=s, name=name, frame=s.frames[1], flags=flags})
                 end
                 s:close()
             end
@@ -978,14 +1084,14 @@ else
     end
 
 
-    local function changeLayers()
-        local val = dlg.data.layers
+    local function changeSyncMode()
+        local mode = dlg.data.syncMode
         local sf = spr.filename
         if syncList[sf] ~= nil then
-            syncList[sf] = (val and (syncList[sf] | BIT_SYNC_LAYERS) or (syncList[sf] & ~BIT_SYNC_LAYERS))
+            syncList[sf] = setSyncModeFlags(syncList[sf], mode)
         end
         if docList[spr] ~= nil then
-            docList[spr].layers = val
+            setDocSyncMode(docList[spr], mode)
         end
         syncSprite()
         updateDialog()
@@ -1004,7 +1110,9 @@ else
         end
         
         local s = spr.filename
-        if syncList[sf] & BIT_SYNC_LAYERS ~= 0 then
+        if syncList[sf] & BIT_SYNC_TOP_LEVEL ~= 0 then
+            sendTopLevelItems(s)
+        elseif syncList[sf] & BIT_SYNC_LAYERS ~= 0 then
             sendImageLayers(s)
         else
             -- sync non-spritesheet image for spritesheets
@@ -1080,14 +1188,14 @@ else
         local sync = (spr ~= nil and syncList[spr.filename])
         local doc =  (spr ~= nil and docList[spr])
 
-        local layers = (spr ~= nil and doc and doc.layers)
+        local mode = docSyncMode(doc)
         local animated = (spr ~= nil and doc and doc.animated)
 
         if status then dlg:modify{ id="status", text=status } end
         dlg:modify{ id="reconnect", visible=(not connected) }
-        dlg:modify{ id="animated", visible=(connected and spr ~= nil and sync ~= nil and not layers), selected=animated }
+        dlg:modify{ id="animated", visible=(connected and spr ~= nil and sync ~= nil and mode == SYNC_MODE_FLAT), selected=animated }
         dlg:modify{ id="showuv", visible=(connected and spr ~= nil and sync ~= nil), selected=(spr and doc and doc.showUV) }
-        dlg:modify{ id="layers", visible=(connected and settings.layers and spr ~= nil and sync ~= nil and not animated), selected=layers }
+        dlg:modify{ id="syncMode", visible=(connected and settings.layers and spr ~= nil and sync ~= nil and not animated), option=mode }
         dlg:modify{ id="sendopen", visible=(connected and spr ~= nil and sync == nil) }
     end
 
@@ -1098,7 +1206,12 @@ else
     dlg:check{ id="animated", text="Animation", onclick=changeAnimated, selected=(spr and docList[spr] and docList[spr].animated) }
 
     dlg:newrow()
-    dlg:check{ id="layers", text="Layers", onclick=changeLayers, selected=(spr and docList[spr] and docList[spr].layers) }
+    dlg:combobox{
+        id="syncMode",
+        label="Image Mode",
+        option=docSyncMode(spr and docList[spr]),
+        options=SYNC_MODES,
+        onchange=changeSyncMode }
 
     dlg:newrow()
     dlg:check{ id="showuv", text="Show UV", onclick=changeShowUV, selected=(spr and docList[spr] and docList[spr].showUV) }

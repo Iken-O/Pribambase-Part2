@@ -268,6 +268,12 @@ class SB_OT_plane_add(bpy.types.Operator):
         name="Separate Layers",
         description="If checked, sync each Aseprite layer as a separate Blender Image; otherwise, sync the flattened sprite as a single Image. Same as the Layers switch in Aseprite's sync popup",
         default=False)
+
+    top_level: bpy.props.BoolProperty(
+        options={'HIDDEN'},
+        name="Top-Level Items",
+        description="Sync top-level layers and composited groups as separate Blender Images",
+        default=False)
     
     ## New Image
     new_image: bpy.props.BoolProperty("New Image", options={'HIDDEN'})
@@ -358,12 +364,22 @@ class SB_OT_plane_add(bpy.types.Operator):
 
                 if addon.connected:
                     # open the sprite normally
-                    res = bpy.ops.pribambase.sprite_open(filepath=self.filepath, relative=self.relative, sheet=self.sheet, layers=self.layers)
+                    res = bpy.ops.pribambase.sprite_open(
+                        filepath=self.filepath,
+                        relative=self.relative,
+                        sheet=self.sheet,
+                        layers=self.layers,
+                        top_level=self.top_level)
                     if 'CANCELLED' in res:
                         return res
                 else:
                     # make a stub and wait for the user to launch Ase
-                    bpy.ops.pribambase.sprite_stub(name=img_name, source=self.filepath, layers=self.layers, sheet=self.sheet)
+                    bpy.ops.pribambase.sprite_stub(
+                        name=img_name,
+                        source=self.filepath,
+                        layers=self.layers,
+                        top_level=self.top_level,
+                        sheet=self.sheet)
                     self.report({'INFO'}, "Placeholder image created. Connect aseprite and open it to retrieve image data")
 
                 img = next(i for i in bpy.data.images if i.sb_props.source_abs == self.filepath)

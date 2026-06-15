@@ -208,7 +208,8 @@ class SB_ImageProperties(bpy.types.PropertyGroup):
         description="Sync related flags passed to Aseprite with texture list",
         items=(('SHEET', "All Frames", "Send all frames via spritesheet"),
             ('SHOW_UV', "Show UV", "Sync UV changes to sprite"),
-            ('LAYERS', "Layers", "Separate sprite layers"),),
+            ('LAYERS', "Layers", "Sync individual sprite layers"),
+            ('TOP_LEVEL', "Top-Level Items", "Sync top-level layers and composited groups"),),
         options={'ENUM_FLAG'})
 
     needs_save: bpy.props.BoolProperty(
@@ -348,7 +349,8 @@ class SB_ShaderNodeTreeProperties(bpy.types.PropertyGroup):
         description="Sync related flags passed to Aseprite with texture list",
         items=(('SHEET', "All Frames", "Send all frames via spritesheet"),
             ('SHOW_UV', "Show UV", "Sync UV changes to sprite"),
-            ('LAYERS', "Layers", "Separate sprite layers"),),
+            ('LAYERS', "Layers", "Sync individual sprite layers"),
+            ('TOP_LEVEL', "Top-Level Items", "Sync top-level layers and composited groups"),),
         options={'ENUM_FLAG'})
 
     def source_set(self, source, relative:bool=None):

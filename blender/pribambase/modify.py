@@ -526,19 +526,27 @@ class SB_OT_new_texture(bpy.types.Operator, ModalExecuteMixin):
     path:bpy.props.StringProperty(name="Path")
     sheet:bpy.props.BoolProperty(name="Animated")
     layers:bpy.props.BoolProperty(name="Layers")
+    top_level:bpy.props.BoolProperty(name="Top-Level Items")
 
     def modal_execute(self, context):
         if self.path:
-            bpy.ops.pribambase.sprite_open(filepath=self.path, relative=addon.prefs.use_relative_path, sheet=self.sheet, layers=self.layers)
+            bpy.ops.pribambase.sprite_open(
+                filepath=self.path,
+                relative=addon.prefs.use_relative_path,
+                sheet=self.sheet,
+                layers=self.layers,
+                top_level=self.top_level)
         else:
             flags = set()
             if self.layers:
                 flags.add('LAYERS')
+            if self.top_level:
+                flags.add('TOP_LEVEL')
             if self.sheet:
                 flags.add('SHEET')
 
             with util.pause_depsgraph_updates():
-                if self.layers:
+                if self.layers or self.top_level:
                     img = bpy.data.images.new(self.name, 1, 1, alpha=True)
                     img.sb_props.needs_save = True
                     img.sb_props.is_layer = True

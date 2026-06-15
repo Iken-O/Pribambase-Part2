@@ -244,6 +244,7 @@ class SB_OT_sprite_open(bpy.types.Operator):
     relative: bpy.props.BoolProperty(name="Relative Path", description="Select the file relative to blend file")
     sheet: bpy.props.BoolProperty(name="Sheet Animation", description="If checked, sync entire animation to blender as a spritesheet image; if not, only send the current frame. Same as 'Animation' switch in Aseprite's sync popup")
     layers: bpy.props.BoolProperty(options={'HIDDEN'}, name="Separate Layers", description="If checked, sync each Aseprite layer as a separate Blender Image; otherwise, sync the flattened sprite as a single Image. Same as the Layers switch in Aseprite's sync popup")
+    top_level: bpy.props.BoolProperty(options={'HIDDEN'}, name="Top-Level Items", description="Sync top-level layers and composited groups as separate Blender Images")
 
     # dialog settings
     filter_glob: bpy.props.StringProperty(default="*.ase;*.aseprite;*.bmp;*.flc;*.fli;*.gif;*.ico;*.jpeg;*.jpg;*.pcx;*.pcc;*.png;*.tga;*.webp", options={'HIDDEN'})
@@ -263,10 +264,15 @@ class SB_OT_sprite_open(bpy.types.Operator):
 
         self.__class__._last_relative = self.relative
         
-        bpy.ops.pribambase.sprite_stub(name=name, source=self.filepath, layers=self.layers, sheet=self.sheet)
+        bpy.ops.pribambase.sprite_stub(
+            name=name,
+            source=self.filepath,
+            layers=self.layers,
+            top_level=self.top_level,
+            sheet=self.sheet)
 
         # switch to the image in the editor
-        if not self.layers and context and context.area and context.area.type == 'IMAGE_EDITOR':
+        if not self.layers and not self.top_level and context and context.area and context.area.type == 'IMAGE_EDITOR':
             img = next(i for i in bpy.data.images if i.sb_props.source_abs == self.filepath)
             context.area.spaces.active.image = img
 
@@ -275,6 +281,8 @@ class SB_OT_sprite_open(bpy.types.Operator):
             flags.add('SHEET')
         if self.layers:
             flags.add('LAYERS')
+        if self.top_level:
+            flags.add('TOP_LEVEL')
         msg = encode.sprite_open(name=self.filepath, flags=flags)
         addon.server.send(msg)
 
@@ -302,12 +310,13 @@ class SB_OT_sprite_stub(bpy.types.Operator):
     name:bpy.props.StringProperty(description="Datablock name. Shall not be empty")
     source:bpy.props.StringProperty(description="Sprite filepath or identifier. Shall not be empty")
     layers:bpy.props.BoolProperty(default=False)
+    top_level:bpy.props.BoolProperty(default=False)
     sheet:bpy.props.BoolProperty(default=False)
     path_relative:bpy.props.EnumProperty(items=(('DEFAULT', "", ""), ('RELATIVE', "", ""), ('ABSOLUTE', "", "")), default='DEFAULT')
     
     def execute(self, context):
         # TODO implement and remove
-        if self.layers and self.sheet:
+        if (self.layers or self.top_level) and self.sheet:
             raise NotImplementedError
         
         if not self.name or not self.source:
@@ -315,7 +324,7 @@ class SB_OT_sprite_stub(bpy.types.Operator):
 
         created = False
 
-        if self.layers:
+        if self.layers or self.top_level:
             try:
                 img = next(i for i in bpy.data.images if i.sb_props.is_layer and i.sb_props.source_abs == self.source)
             except StopIteration:
@@ -349,6 +358,8 @@ class SB_OT_sprite_stub(bpy.types.Operator):
             flags.add('SHEET')
         if self.layers:
             flags.add('LAYERS')
+        if self.top_level:
+            flags.add('TOP_LEVEL')
         img.sb_props.sync_flags = flags
 
         return {'FINISHED'}
@@ -388,6 +399,11 @@ class SB_OT_sprite_new(bpy.types.Operator):
         name="Sync Layers",
         description="If checked, sync each Aseprite layer as a separate Blender Image; otherwise, sync the flattened sprite as a single Image. Same as the Layers switch in Aseprite's sync popup")
 
+    top_level: bpy.props.BoolProperty(
+        options={'HIDDEN'},
+        name="Top-Level Items",
+        description="Sync top-level layers and composited groups as separate Blender Images")
+
 
     @classmethod
     def poll(self, context):
@@ -407,8 +423,8 @@ class SB_OT_sprite_new(bpy.types.Operator):
             img = bpy.data.images.new(self.sprite, 1, 1, alpha=True)
             img.sb_props.needs_save = True
             img.sb_props.source_set(self.sprite)
-            img.sb_props.is_layer = self.layers
-            img.sb_props.is_layer_placeholder = self.layers
+            img.sb_props.is_layer = self.layers or self.top_level
+            img.sb_props.is_layer_placeholder = self.layers or self.top_level
             util.pack_empty_png(img)
         # switch to it in the editor
         if context.area.type == 'IMAGE_EDITOR':
@@ -424,6 +440,8 @@ class SB_OT_sprite_new(bpy.types.Operator):
             flags.add('SHEET')
         if self.layers:
             flags.add('LAYERS')
+        if self.top_level:
+            flags.add('TOP_LEVEL')
         img.sb_props.sync_flags = flags
 
         msg = encode.sprite_new(
