@@ -1,9 +1,10 @@
 import bpy
+import numpy as np
 
 from os import path
 from typing import List, Set, Tuple
 
-from .util import pack_empty_png, aseprite_pixels_to_image, image_pixels_set
+from .util import pack_empty_png, image_pixels_set
 
 
 def layer_images(sprite_name:str) -> List[bpy.types.Image]:
@@ -25,6 +26,34 @@ def legacy_tree(sprite_name:str) -> bpy.types.ShaderNodeTree:
         and hasattr(tree, "sb_props")
         and path.normpath(tree.sb_props.source_abs) == source
     ), None)
+
+
+def layer_pixels_to_canvas(pixels, bounds:Tuple[int, int, int, int],
+        canvas_size:Tuple[int, int]) -> np.ndarray:
+    """Place an Aseprite cel in a transparent full-size canvas."""
+    x, y, width, height = bounds
+    canvas_width, canvas_height = canvas_size
+    canvas = np.zeros((canvas_height, canvas_width, 4), dtype=np.float32)
+
+    if not pixels or width <= 0 or height <= 0:
+        return canvas
+
+    cel = np.asarray(pixels, dtype=np.float32).reshape((height, width, 4))
+    cel /= 255.0
+
+    left = max(0, x)
+    top = max(0, y)
+    right = min(canvas_width, x + width)
+    bottom = min(canvas_height, y + height)
+    if left >= right or top >= bottom:
+        return canvas
+
+    cel_left = left - x
+    cel_top = top - y
+    canvas[top:bottom, left:right] = cel[
+        cel_top:cel_top + (bottom - top),
+        cel_left:cel_left + (right - left)]
+    return canvas
 
 
 def update_layer_images(sprite_name:str, sprite_width:int, sprite_height:int,
@@ -68,9 +97,11 @@ def update_layer_images(sprite_name:str, sprite_width:int, sprite_height:int,
         image.sb_props.layer_opacity = 0
         image.sb_props.layer_bounds = (0, 0, 0, 0)
         image.sb_props.sprite_size = (sprite_width, sprite_height)
-        if image.size != (1, 1):
-            image.scale(1, 1)
-        image_pixels_set(image, [0.0, 0.0, 0.0, 0.0])
+        if image.size != (sprite_width, sprite_height):
+            image.scale(sprite_width, sprite_height)
+        image_pixels_set(
+            image,
+            np.zeros((sprite_height, sprite_width, 4), dtype=np.float32).ravel())
         image.update()
         image.update_tag()
         return [image]
@@ -86,7 +117,8 @@ def update_layer_images(sprite_name:str, sprite_width:int, sprite_height:int,
             ), None)
 
         if image is None:
-            image = bpy.data.images.new(expected_name, max(1, w), max(1, h), alpha=True)
+            image = bpy.data.images.new(
+                expected_name, sprite_width, sprite_height, alpha=True)
             image.sb_props.needs_save = True
             pack_empty_png(image)
 
@@ -103,16 +135,14 @@ def update_layer_images(sprite_name:str, sprite_width:int, sprite_height:int,
         image.sb_props.layer_bounds = (x, y, w, h)
         image.sb_props.sprite_size = (sprite_width, sprite_height)
 
-        if pixels:
-            if image.size != (w, h):
-                image.scale(w, h)
-            image_pixels_set(
-                image,
-                aseprite_pixels_to_image(image, pixels, (w, h)))
-        else:
-            if image.size != (1, 1):
-                image.scale(1, 1)
-            image_pixels_set(image, [0.0, 0.0, 0.0, 0.0])
+        if image.size != (sprite_width, sprite_height):
+            image.scale(sprite_width, sprite_height)
+
+        canvas = layer_pixels_to_canvas(
+            pixels,
+            (x, y, w, h),
+            (sprite_width, sprite_height))
+        image_pixels_set(image, canvas[::-1, :, :].copy().ravel())
 
         image.update()
         image.update_tag()
