@@ -357,10 +357,36 @@ else
         return string.pack("<BHHs4HI4I4", id, sprite.width, sprite.height, name, flags, group, nlayers), table.concat(_frames, ""), table.unpack(_infos)
     end
 
+    local function drawLayerTree(destination, layer, frame, width, height)
+        if not layer.isVisible or layer.isReference then
+            return
+        end
+
+        if layer.isGroup then
+            local groupImage = Image(width, height, ColorMode.RGB)
+            for _,child in ipairs(layer.layers) do
+                drawLayerTree(groupImage, child, frame, width, height)
+            end
+            destination:drawImage(groupImage, Point(0, 0), layer.opacity, layer.blendMode)
+            return
+        end
+
+        local cel = nil
+        for _,candidate in ipairs(layer.cels) do
+            if candidate.frameNumber == frame.frameNumber then
+                cel = candidate
+                break
+            end
+        end
+        if cel ~= nil then
+            local opacity = math.tointeger(layer.opacity * cel.opacity / 255)
+            destination:drawImage(cel.image, cel.position, opacity, layer.blendMode)
+        end
+    end
+
     local function messageTopLevelItems(opts)
         local sprite = opts.sprite
         local name = opts.name or ""
-        local frameNumber = opts.frame.frameNumber
         local flags = opts.flags
         local id = string.byte('L')
         local count = 0
@@ -369,18 +395,12 @@ else
             buf:resize(sprite.width, sprite.height)
         end
 
-        for topIndex,layer in ipairs(sprite.layers) do
+        for _,layer in ipairs(sprite.layers) do
             if not layer.isReference then
                 count = count + 1
-                local copy = Sprite(sprite)
-
-                for copyIndex,copyLayer in ipairs(copy.layers) do
-                    copyLayer.isVisible = copyIndex == topIndex and layer.isVisible
-                end
 
                 buf:clear()
-                buf:drawSprite(copy, frameNumber)
-                copy:close()
+                drawLayerTree(buf, layer, opts.frame, sprite.width, sprite.height)
 
                 _infos[2 * count - 1] = string.pack(
                     "<HHHHhhHHs4I4",
