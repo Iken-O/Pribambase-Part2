@@ -416,6 +416,20 @@ else
 
     -- creates a reference layer that is scaled to fill the sprite
     -- it generates several undos - consider wrapping with `app.transaction`
+    local function set_uv_visibility(name, visible)
+        if spr == nil or name == nil or name == "" then
+            return
+        end
+
+        for _,layer in ipairs(spr.layers) do
+            if layer.name == name then
+                layer.isVisible = visible
+                return
+            end
+        end
+    end
+
+
     local function show_uv(w, h, opacity, name, data)
         local refLayer
         local refCel
@@ -442,6 +456,8 @@ else
             refCel = app.activeSprite:newCel(refLayer, 1)
             app.activeLayer = active
         end
+
+        refLayer.isVisible = true
 
         if spr.colorMode == ColorMode.RGB then
             if buf.width ~= w or buf.height ~= h then
@@ -736,6 +752,10 @@ else
             return
         end
 
+        if docList[spr] ~= nil then
+            docList[spr].uvLayer = layer
+        end
+
         pause_spr_change = true
         app.transaction(function()
             show_uv(w, h, opacity, layer, pixels)
@@ -980,6 +1000,7 @@ else
         end
         if docList[spr] ~= nil then
             docList[spr].showUV = val
+            set_uv_visibility(docList[spr].uvLayer, val)
         end
         
         local s = spr.filename
