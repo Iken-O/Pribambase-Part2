@@ -6,7 +6,30 @@ Pribambase links Aseprite and Blender for pixel-art heavy workflows, with live t
 
 This fork is being reorganized as an independently maintained codebase.
 
-- Target: Blender 4.2+ extension workflow.
+- Target: Blender 5.1.
+- Current Blender and Aseprite extension version: `3.0.0`.
+
+## Image Sync Modes
+
+The Aseprite Sync window provides an `Image Mode` dropdown:
+
+- `Flattened` sends one composited image.
+- `Individual Layers` sends each included image layer as a separate, full-canvas Blender Image.
+- `Top-Level Items` sends each top-level layer separately and sends each top-level group as one composited image.
+
+The flattened image is also updated while either separate-image mode is active. Layer sync metadata is stored on Blender Images, so it does not depend on generated shader node groups.
+
+### Sync-Only Layer Exclusion
+
+Aseprite reference layers and layers whose names start with `_` are visible in Aseprite but are not sent to Blender.
+
+- `_guide` is excluded from all sync modes.
+- A group such as `_hideGroup` and its complete subtree are excluded.
+- In `Flattened` mode, included layers are composited without excluded layers.
+- In `Individual Layers` mode, only included image layers are sent.
+- In `Top-Level Items` mode, excluded top-level items are omitted, and excluded children are omitted from group composites.
+
+This rule also keeps UV reference layers received from Blender out of the synchronized texture.
 
 ## Repository Layout
 
@@ -15,7 +38,7 @@ This fork is being reorganized as an independently maintained codebase.
 
 ## Current State
 
-The repository split and Aseprite source recovery are done. The Blender package now has extension metadata and bundled Windows x64 and Linux x64 wheels for Blender 4.2+.
+The repository split and Aseprite source recovery are done. The Blender package now has extension metadata and bundled Windows x64 and Linux x64 wheels for Blender 5.1.
 
 - The Blender extension root is `blender/pribambase/`.
 - `blender_manifest.toml` and `wheels/` are in place for Blender's extension system.
