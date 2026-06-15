@@ -42,7 +42,7 @@ def _get_sprite_enum_items(self, context):
     if context:
         images = (("IMG" + img.name, img.name, "") for img in bpy.data.images if not img.sb_props.is_layer and not img.sb_props.is_sheet and img.source in ('FILE', 'GENERATED'))
         trees = (("GRP" + tree.name, tree.name, "") for tree in bpy.data.node_groups if tree.type == 'SHADER' and tree.sb_props.source)
-        _sprite_enum_items_ref = [*images, *trees] 
+        _sprite_enum_items_ref = [*images, *trees]
     else:
         _sprite_enum_items_ref = []
         
@@ -265,8 +265,8 @@ class SB_OT_plane_add(bpy.types.Operator):
     
     layers: bpy.props.BoolProperty(
         options={'HIDDEN'},
-        name="Separate Layers", 
-        description="If checked, sync layers to blender separately, and generate a node group to combine them; Otherwise, sync flattened sprite to a single image. Same as 'Layers' switch in Aseprite's sync popup",
+        name="Separate Layers",
+        description="If checked, sync each Aseprite layer as a separate Blender Image; otherwise, sync the flattened sprite as a single Image. Same as the Layers switch in Aseprite's sync popup",
         default=False)
     
     ## New Image
@@ -366,12 +366,8 @@ class SB_OT_plane_add(bpy.types.Operator):
                     bpy.ops.pribambase.sprite_stub(name=img_name, source=self.filepath, layers=self.layers, sheet=self.sheet)
                     self.report({'INFO'}, "Placeholder image created. Connect aseprite and open it to retrieve image data")
 
-                if self.layers:
-                    img = next(g for g in bpy.data.node_groups if g.type == 'SHADER' and g.sb_props.source_abs == self.filepath)
-                    self.sprite = 'GRP' + img.name
-                else:
-                    img = next(i for i in bpy.data.images if i.sb_props.source_abs == self.filepath)
-                    self.sprite = 'IMG' + img.name
+                img = next(i for i in bpy.data.images if i.sb_props.source_abs == self.filepath)
+                self.sprite = 'IMG' + img.name
             else:
                 # blender supported
                 img = bpy.data.images.load(self.filepath)

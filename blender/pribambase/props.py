@@ -221,6 +221,56 @@ class SB_ImageProperties(bpy.types.PropertyGroup):
         description="Flag if the image is a layer",
         default=False)
 
+    is_layer_placeholder: bpy.props.BoolProperty(
+        name="Layer Placeholder",
+        description="Temporary image used to retain per-layer sync settings before layer data arrives",
+        default=False,
+        options={'HIDDEN'})
+
+    layer_index: bpy.props.IntProperty(
+        name="Layer Index",
+        description="Aseprite layer index",
+        default=-1,
+        options={'HIDDEN'})
+
+    layer_name: bpy.props.StringProperty(
+        name="Layer Name",
+        description="Aseprite layer name",
+        options={'HIDDEN'})
+
+    layer_group: bpy.props.StringProperty(
+        name="Layer Group",
+        description="Top-level Aseprite group containing this layer",
+        options={'HIDDEN'})
+
+    layer_blend: bpy.props.IntProperty(
+        name="Layer Blend Mode",
+        description="Aseprite blend mode identifier",
+        default=0,
+        min=0,
+        options={'HIDDEN'})
+
+    layer_opacity: bpy.props.IntProperty(
+        name="Layer Opacity",
+        description="Combined Aseprite layer and cel opacity",
+        default=255,
+        min=0,
+        max=255,
+        options={'HIDDEN'})
+
+    layer_bounds: bpy.props.IntVectorProperty(
+        name="Layer Bounds",
+        description="Aseprite cel bounds as x, y, width, height",
+        size=4,
+        options={'HIDDEN'})
+
+    sprite_size: bpy.props.IntVectorProperty(
+        name="Sprite Size",
+        description="Dimensions of the complete source sprite",
+        size=2,
+        min=0,
+        options={'HIDDEN'})
+
     # Spritesheet-specific props
     is_sheet: bpy.props.BoolProperty(
         name="Spritesheet",

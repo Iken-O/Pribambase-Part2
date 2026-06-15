@@ -28,7 +28,7 @@ from typing import Collection, Tuple
 from . import util
 from .util import ModalExecuteMixin, image_nodata
 from .addon import addon
-from .layers import update_layers
+from .layers import update_layer_images
 
 
 _update_image_args = None
@@ -129,17 +129,7 @@ class SB_OT_update_image_layers(bpy.types.Operator, ModalExecuteMixin):
         """Replace the image with pixel data"""
         width, height, name, flags, groups, layers = self.args
 
-        tree:bpy.types.ShaderNodeTree = None
-        try:
-            tree = next(g for g in bpy.data.node_groups if g.type == 'SHADER' and g.sb_props.source_abs == name)
-        except StopIteration:
-            tree = bpy.data.node_groups.new(bpy.path.basename(name), 'ShaderNodeTree')
-            tree.sb_props.source_set(name)
-
-        tree.sb_props.sync_flags = flags
-        tree.sb_props.size = (width, height)
-        
-        update_layers(tree, name, width, height, groups, layers)
+        update_layer_images(name, width, height, flags, groups, layers)
         util.refresh()
 
         self.args = None
@@ -549,7 +539,11 @@ class SB_OT_new_texture(bpy.types.Operator, ModalExecuteMixin):
 
             with util.pause_depsgraph_updates():
                 if self.layers:
-                    img = bpy.data.node_groups.new(self.name, "ShaderNodeTree")
+                    img = bpy.data.images.new(self.name, 1, 1, alpha=True)
+                    img.sb_props.needs_save = True
+                    img.sb_props.is_layer = True
+                    img.sb_props.is_layer_placeholder = True
+                    util.pack_empty_png(img)
                 else:
                     img = bpy.data.images.new(self.name, 1, 1, alpha=True)
                     img.sb_props.needs_save = True

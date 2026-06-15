@@ -8,7 +8,7 @@ maintainer = "Iken-O"
 type = "add-on"
 website = "https://github.com/Iken-O/Pribambase-Part2"
 
-blender_version_min = "4.2.0"
+blender_version_min = "5.1.0"
 
 license = [
   "SPDX:GPL-3.0-or-later",

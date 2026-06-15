@@ -92,14 +92,24 @@ class Addon:
 
     @property
     def texture_list(self) -> List[Tuple[str, Set[str]]]:
-        layers = []
+        textures = {}
 
-        for grp in bpy.data.node_groups:
-            if grp.type == 'SHADER' and grp.sb_props.source:
-                layers.append((grp.sb_props.sync_name, grp.sb_props.sync_flags))
+        for image in bpy.data.images:
+            if image.sb_props.is_sheet or image.sb_props.is_layer:
+                continue
+            textures[image.sb_props.sync_name] = image.sb_props.sync_flags
 
-        images = [(img.sb_props.sync_name, img.sb_props.sync_flags) for img in bpy.data.images if not img.sb_props.is_layer]
-        return [*images, *layers]
+        for image in bpy.data.images:
+            if image.sb_props.is_layer and image.sb_props.source:
+                textures[image.sb_props.sync_name] = image.sb_props.sync_flags
+
+        # Keep old blend files connected until their next per-layer update
+        # migrates ownership from the generated node group to Images.
+        for group in bpy.data.node_groups:
+            if group.type == 'SHADER' and group.sb_props.source:
+                textures.setdefault(group.sb_props.sync_name, group.sb_props.sync_flags)
+
+        return list(textures.items())
 
     @property
     def uv_offset_origin(self) -> bpy.types.Object:

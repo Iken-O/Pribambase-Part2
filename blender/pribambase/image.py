@@ -30,8 +30,7 @@ from os import path
 
 from .messaging import encode
 from . import util
-from . import layers
-from .layers import find_tree, update_color_outputs
+from .layers import layer_images
 from .addon import addon
 from .util import image_nodata
 from .setup import SB_OT_launch
@@ -244,7 +243,7 @@ class SB_OT_sprite_open(bpy.types.Operator):
     filepath: bpy.props.StringProperty(subtype="FILE_PATH")
     relative: bpy.props.BoolProperty(name="Relative Path", description="Select the file relative to blend file")
     sheet: bpy.props.BoolProperty(name="Sheet Animation", description="If checked, sync entire animation to blender as a spritesheet image; if not, only send the current frame. Same as 'Animation' switch in Aseprite's sync popup")
-    layers: bpy.props.BoolProperty(options={'HIDDEN'}, name="Separate Layers", description="If checked, sync layers to blender separately, and generate a node group to combine them; Otherwise, sync flattened sprite to a single image. Same as 'Layers' switch in Aseprite's sync popup")
+    layers: bpy.props.BoolProperty(options={'HIDDEN'}, name="Separate Layers", description="If checked, sync each Aseprite layer as a separate Blender Image; otherwise, sync the flattened sprite as a single Image. Same as the Layers switch in Aseprite's sync popup")
 
     # dialog settings
     filter_glob: bpy.props.StringProperty(default="*.ase;*.aseprite;*.bmp;*.flc;*.fli;*.gif;*.ico;*.jpeg;*.jpg;*.pcx;*.pcc;*.png;*.tga;*.webp", options={'HIDDEN'})
@@ -315,16 +314,17 @@ class SB_OT_sprite_stub(bpy.types.Operator):
             raise RuntimeError
 
         created = False
-        
+
         if self.layers:
             try:
-                # we might have this image opened already
-                img = next(g for g in bpy.data.node_groups if g.type == 'SHADER' and g.sb_props.source_abs == self.source)
+                img = next(i for i in bpy.data.images if i.sb_props.is_layer and i.sb_props.source_abs == self.source)
             except StopIteration:
-                # create a stub that will be filled after receiving data
                 with util.pause_depsgraph_updates():
-                    img = bpy.data.node_groups.new(self.name, 'ShaderNodeTree')
-                    update_color_outputs(img, [])
+                    img = bpy.data.images.new(self.name, 1, 1, alpha=True)
+                    img.sb_props.needs_save = True
+                    img.sb_props.is_layer = True
+                    img.sb_props.is_layer_placeholder = True
+                    util.pack_empty_png(img)
                     created = True
         else:
             try:
@@ -349,7 +349,7 @@ class SB_OT_sprite_stub(bpy.types.Operator):
             flags.add('SHEET')
         if self.layers:
             flags.add('LAYERS')
-        img.sb_props.sync_flags
+        img.sb_props.sync_flags = flags
 
         return {'FINISHED'}
         
@@ -385,8 +385,8 @@ class SB_OT_sprite_new(bpy.types.Operator):
 
     layers: bpy.props.BoolProperty(
         options={'HIDDEN'}, # experimental - probably will be removed later
-        name="Sync Layers", 
-        description="If checked, sync layers to blender separately, and generate a node group to combine them; Otherwise, sync flattened sprite to a single image. Same as 'Layers' switch in Aseprite's sync popup")
+        name="Sync Layers",
+        description="If checked, sync each Aseprite layer as a separate Blender Image; otherwise, sync the flattened sprite as a single Image. Same as the Layers switch in Aseprite's sync popup")
 
 
     @classmethod
@@ -406,6 +406,9 @@ class SB_OT_sprite_new(bpy.types.Operator):
         with util.pause_depsgraph_updates():
             img = bpy.data.images.new(self.sprite, 1, 1, alpha=True)
             img.sb_props.needs_save = True
+            img.sb_props.source_set(self.sprite)
+            img.sb_props.is_layer = self.layers
+            img.sb_props.is_layer_placeholder = self.layers
             util.pack_empty_png(img)
         # switch to it in the editor
         if context.area.type == 'IMAGE_EDITOR':
@@ -421,6 +424,7 @@ class SB_OT_sprite_new(bpy.types.Operator):
             flags.add('SHEET')
         if self.layers:
             flags.add('LAYERS')
+        img.sb_props.sync_flags = flags
 
         msg = encode.sprite_new(
             name=img.name,
@@ -456,6 +460,7 @@ class SB_OT_sprite_edit(bpy.types.Operator):
         img = context.edit_image
         if img.sb_props.is_sheet:
             img = next((i for i in bpy.data.images if i.sb_props.sheet == img), img)
+
         edit_name = img.sb_props.sync_name
         msg = None
 
@@ -529,14 +534,9 @@ class SB_OT_sprite_purge(bpy.types.Operator):
         description="Remove 'view' image. All relations to other pieces of data will be erased, so unchecking those makes IMPOSSIBLE to remove them automatically another time", 
         default=True)
 
-    remove_nodes: bpy.props.BoolProperty(
-        name="Node Group", 
-        description="Remove node group of the sprite. All relations to other pieces of data will be erased, so unchecking those makes IMPOSSIBLE to remove them automatically another time", 
-        default=True)
-    
     remove_cels: bpy.props.BoolProperty(
-        name="Layer Images", 
-        description="Remove images used for separate layers", 
+        name="Layer Images",
+        description="Remove images used for separate layers",
         default=True)
 
 
@@ -552,7 +552,6 @@ class SB_OT_sprite_purge(bpy.types.Operator):
         row.label(text="Remove:")
         col = row.column(align=True)
         if context.edit_image.sb_props.is_layer:
-            col.prop(self, "remove_nodes")
             col.prop(self, "remove_cels")
         else:
             col.prop(self, "remove_sprite")
@@ -597,26 +596,21 @@ class SB_OT_sprite_purge(bpy.types.Operator):
         if self.remove_sheet and self.sheet:
                 bpy.data.images.remove(self.sheet)
 
-        if self.remove_sprite and self.img:
+        if self.remove_sprite and self.img and not self.is_layer:
                 bpy.data.images.remove(self.img)
 
         if self.is_layer:
-            tree = find_tree(self.img)
-
             if self.remove_cels:
-                for node in tree.nodes:
-                    if node.type == 'TEX_IMAGE':
-                        bpy.data.images.remove(node.image)
-
-            if self.remove_nodes:
-                # goes after everything else
-                bpy.data.node_groups.remove(tree)
+                for image in list(layer_images(self.layer_source)):
+                    bpy.data.images.remove(image)
 
         return {'FINISHED'}
 
 
     def invoke(self, context, event):
         self.img = context.edit_image
+        self.is_layer = self.img.sb_props.is_layer
+        self.layer_source = self.img.sb_props.source_abs if self.is_layer else ""
         self.sheet = self.img.sb_props.sheet
         if self.img.sb_props.is_sheet: # user selected the spritesheet, not the "original" image
             sheet = self.img
@@ -655,10 +649,16 @@ class SB_OT_sprite_replace(bpy.types.Operator):
             img = next((i for i in bpy.data.images if i.sb_props.sheet == img), img)
 
         if img.sb_props.is_layer:
-            img = layers.find_tree(img)
+            old_source = img.sb_props.source_abs
+            siblings = list(layer_images(old_source))
+            for sibling in siblings:
+                sibling.sb_props.source_set(self.filepath, self.relative)
+            flags = img.sb_props.sync_flags
+        else:
+            img.sb_props.source_set(self.filepath, self.relative)
+            flags = img.sb_props.sync_flags
 
-        img.sb_props.source_set(self.filepath, self.relative)
-        msg = encode.sprite_open(name=self.filepath, flags=img.sb_props.sync_flags)
+        msg = encode.sprite_open(name=self.filepath, flags=flags)
         addon.server.send(msg)
 
         return {'FINISHED'}
