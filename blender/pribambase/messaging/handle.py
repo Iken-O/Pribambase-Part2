@@ -226,8 +226,13 @@ class ChangeName(Handler):
 
                 if re.search(r"\.(?:png|jpg|jpeg|bmp|tga)$", new_name):
                     img.filepath_raw = new_name
+                    img.sb_props.needs_save = False
                 else:
                     img.filepath_raw = ""
+
+        for grp in bpy.data.node_groups:
+            if grp.type == 'SHADER' and old_name == grp.sb_props.source_abs:
+                grp.sb_props.source_set(new_name)
 
         bpy.ops.pribambase.send_texture_list()
 
