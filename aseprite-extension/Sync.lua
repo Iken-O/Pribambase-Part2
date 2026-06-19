@@ -548,7 +548,6 @@ else
         popup:newrow()
         popup:combobox{
             id="syncMode",
-            label="Image Mode",
             option=SYNC_MODE_FLAT,
             options=SYNC_MODES,
             visible=settings.layers,
@@ -1275,7 +1274,6 @@ else
     dlg:newrow()
     dlg:combobox{
         id="syncMode",
-        label="Image Mode",
         option=docSyncMode(spr and docList[spr]),
         options=SYNC_MODES,
         onchange=changeSyncMode }
