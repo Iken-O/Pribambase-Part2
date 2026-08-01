@@ -441,6 +441,11 @@ class SB_Preferences(bpy.types.AddonPreferences):
         description="Save/pack the image and reload it every time after syncing with aseprite. NOT RECOMMENDED due to potential heavy disk load - it's needed to work around blender 3.1 image update bug",
         default=False)
 
+    save_aseprite_on_exit: bpy.props.BoolProperty(
+        name="Save Aseprite Files on Exit",
+        description="Automatically save modified Aseprite documents that already have a file path before Aseprite exits. Untitled documents still show a save prompt",
+        default=False)
+
     executable_auto: bpy.props.StringProperty(
         name="Aseprite Executable",
         description="An auto-detected standard distribution of Aseprite (if there's any). If there's no custom path specified, it will be the one launched from Pribambase operators",
@@ -463,6 +468,7 @@ class SB_Preferences(bpy.types.AddonPreferences):
         row.enabled = False
         row.prop(self, "executable_auto", text="Auto-detected")
         box.row().operator("pribambase.setup")
+        box.row().prop(self, "save_aseprite_on_exit")
 
         box = self.template_box(layout, label="UV Map:")
 

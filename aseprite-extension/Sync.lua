@@ -1090,8 +1090,31 @@ else
     end
 
 
-    local function handleExit(_msg)
+    local function saveModifiedSprites()
+        for _, sprite in ipairs(app.sprites) do
+            local isModified = app.apiVersion < 21 or sprite.isModified
+            if isModified and sprite.filename ~= "" then
+                local ok, saved = pcall(function()
+                    return sprite:saveAs(sprite.filename)
+                end)
+                if not ok or saved == false then
+                    return false
+                end
+            end
+        end
+        return true
+    end
+
+
+    local function handleExit(msg)
+        local save = #msg > 1 and string.unpack("<B", msg, 2) ~= 0
         cleanup()
+
+        if save and not saveModifiedSprites() then
+            app.alert{title="Pribambase: Error", text="Failed to save an Aseprite document. Aseprite will remain open."}
+            return
+        end
+
         app.command.Exit()
     end
 

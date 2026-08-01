@@ -33,9 +33,10 @@ def batch(messages:Sequence[bytearray]) -> bytearray:
     return data
 
 
-def app_exit() -> bytearray:
+def app_exit(save:bool=False) -> bytearray:
     data = bytearray()
     add_id(data, 'Q')
+    add_bool(data, save)
     return data
 
 
