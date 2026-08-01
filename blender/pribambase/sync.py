@@ -54,6 +54,19 @@ class Server():
                 asyncio.ensure_future(self._ws.send_str(msg, False))
 
 
+    def request_aseprite_exit(self):
+        """Ask the connected Aseprite instance to exit before Blender closes the file."""
+        if not self.connected:
+            return
+
+        try:
+            message = encode.app_exit()
+            asyncio.get_event_loop().run_until_complete(
+                self._ws.send_bytes(message, False))
+        except Exception:
+            async_loop.log.warning("Failed to ask Aseprite to exit", exc_info=True)
+
+
     @property
     def connected(self):
         return self._ws is not None and not self._ws.closed

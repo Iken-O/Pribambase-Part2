@@ -33,6 +33,12 @@ def batch(messages:Sequence[bytearray]) -> bytearray:
     return data
 
 
+def app_exit() -> bytearray:
+    data = bytearray()
+    add_id(data, 'Q')
+    return data
+
+
 def texture_list(blendfile:str, images:Iterable[Tuple[str, Set[str]]]) -> bytearray:
     data = bytearray()
     add_id(data, 'L')

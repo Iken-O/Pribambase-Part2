@@ -161,6 +161,9 @@ def unregister():
     if sb_on_load_pre in bpy.app.handlers.load_pre:
         bpy.app.handlers.load_pre.remove(sb_on_load_pre)
 
+    if sb_on_exit_pre in bpy.app.handlers.exit_pre:
+        bpy.app.handlers.exit_pre.remove(sb_on_exit_pre)
+
     if sb_on_save_post in bpy.app.handlers.save_post:
         bpy.app.handlers.save_post.remove(sb_on_save_post)
 
@@ -204,6 +207,9 @@ def start():
     if sb_on_load_pre not in bpy.app.handlers.load_pre:
         bpy.app.handlers.load_pre.append(sb_on_load_pre)
 
+    if sb_on_exit_pre not in bpy.app.handlers.exit_pre:
+        bpy.app.handlers.exit_pre.append(sb_on_exit_pre)
+
     if sb_on_save_post not in bpy.app.handlers.save_post:
         bpy.app.handlers.save_post.append(sb_on_save_post)
 
@@ -225,7 +231,17 @@ def sb_on_load_post(scene):
 
 @persistent
 def sb_on_load_pre(scene):
+    _close_file_sync()
+
+
+@persistent
+def sb_on_exit_pre(_is_python_exit, _exit_code):
+    _close_file_sync()
+
+
+def _close_file_sync():
     if addon.server_up:
+        addon.server.request_aseprite_exit()
         addon.stop_server()
 
 

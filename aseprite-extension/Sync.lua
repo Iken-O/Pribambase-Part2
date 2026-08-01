@@ -1090,6 +1090,12 @@ else
     end
 
 
+    local function handleExit(_msg)
+        cleanup()
+        app.command.Exit()
+    end
+
+
     handlers = {
         [string.byte('I')] = handleImage,
         [string.byte('[')] = handleBatch,
@@ -1099,6 +1105,7 @@ else
         [string.byte('O')] = handleOpenSprite,
         [string.byte('F')] = handleFocus,
         [string.byte('P')] = handlePeek,
+        [string.byte('Q')] = handleExit,
     }
 
 
