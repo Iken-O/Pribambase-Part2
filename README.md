@@ -7,7 +7,7 @@ Pribambase links Aseprite and Blender for pixel-art heavy workflows, with live t
 This fork is being reorganized as an independently maintained codebase.
 
 - Target: Blender 5.1.
-- Current Blender and Aseprite extension version: `3.0.2`.
+- Current Blender and Aseprite extension version: `3.0.3`.
 
 ## Image Sync Modes
 

@@ -70,6 +70,13 @@ class Addon:
         self._server = None
 
 
+    def focus_aseprite(self):
+        """Bring the configured Aseprite instance to the foreground when possible."""
+        from .window import focus_aseprite_window
+        executable = self.prefs.executable or self.prefs.executable_auto
+        return focus_aseprite_window(executable)
+
+
     @property
     def server(self) -> 'Server':
         return self._server

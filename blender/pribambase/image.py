@@ -495,6 +495,7 @@ class SB_OT_sprite_edit(bpy.types.Operator):
                 pixels=pixels.tobytes())
 
         addon.server.send(msg)
+        addon.focus_aseprite()
 
         return {'FINISHED'}
 

@@ -241,7 +241,10 @@ def sb_on_exit_pre(_is_python_exit, _exit_code):
 
 def _close_file_sync():
     if addon.server_up:
-        addon.server.request_aseprite_exit(addon.prefs.save_aseprite_on_exit)
+        save = addon.prefs.save_aseprite_on_exit
+        if addon.connected and not save:
+            addon.focus_aseprite()
+        addon.server.request_aseprite_exit(save)
         addon.stop_server()
 
 
