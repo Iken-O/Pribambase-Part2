@@ -44,7 +44,7 @@ def unique_name(name:str, collection:Collection[str]) -> str:
     while name in collection:
         if not base: # do once
             # regexp always matches the first group
-            base, suffix = re.match("^(.*?)(?:\.([0-9]{3}))?$", name).groups()
+            base, suffix = re.match(r"^(.*?)(?:\.([0-9]{3}))?$", name).groups()
             if len(base) > 59: # the length of IDProperty names is limited to 63 characters
                 base = base[:60]
             count = int(suffix) if suffix else 0

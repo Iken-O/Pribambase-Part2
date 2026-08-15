@@ -30,8 +30,28 @@ log = logging.getLogger(__name__)
 # Keep websocket handling responsive without busy-spinning Blender's UI thread.
 ASYNC_LOOP_INTERVAL = 0.01
 
-# Keeps track of whether a loop-kicking operator is already running.
+# Tracks whether Blender's asyncio timer can stop after its next iteration.
 _stop_after_this_kick = False
+
+
+def get_event_loop():
+    """Return the current loop, creating one when Python has not set one.
+
+    Python 3.14 no longer creates a loop implicitly in
+    ``asyncio.get_event_loop()``. Blender drives asyncio manually from a timer,
+    so the add-on needs to own and install that loop explicitly.
+    """
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    if loop.is_closed():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    return loop
 
 
 def setup_asyncio_executor():
@@ -39,15 +59,16 @@ def setup_asyncio_executor():
 
     import sys
 
-    if sys.platform == 'win32':
-        asyncio.get_event_loop().close()
+    loop = get_event_loop()
+
+    if sys.platform == 'win32' and not isinstance(loop, asyncio.ProactorEventLoop):
+        if not loop.is_running():
+            loop.close()
         # On Windows, the default event loop is SelectorEventLoop, which does
         # not support subprocesses. ProactorEventLoop should be used instead.
         # Source: https://docs.python.org/3/library/asyncio-subprocess.html
         loop = asyncio.ProactorEventLoop()
         asyncio.set_event_loop(loop)
-    else:
-        loop = asyncio.get_event_loop()
 
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
     loop.set_default_executor(executor)
@@ -59,7 +80,7 @@ def kick_async_loop():
     """Perform one asyncio event loop iteration for Blender's timer."""
 
     global _stop_after_this_kick
-    loop = asyncio.get_event_loop()
+    loop = get_event_loop()
 
     # Even when we want to stop, we always need to do one more
     # 'kick' to handle task-done callbacks.
@@ -122,11 +143,9 @@ def ensure_async_loop():
 
 
 def erase_async_loop():
-    global _loop_kicking_operator_running
-
     log.debug('Erasing async loop')
 
-    loop = asyncio.get_event_loop()
+    loop = get_event_loop()
     loop.stop()
 
     if bpy.app.timers.is_registered(kick_async_loop):

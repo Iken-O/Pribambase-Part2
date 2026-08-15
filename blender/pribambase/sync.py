@@ -61,7 +61,7 @@ class Server():
 
         try:
             message = encode.app_exit(save)
-            asyncio.get_event_loop().run_until_complete(
+            async_loop.get_event_loop().run_until_complete(
                 self._ws.send_bytes(message, False))
         except Exception:
             async_loop.log.warning("Failed to ask Aseprite to exit", exc_info=True)
@@ -94,7 +94,7 @@ class Server():
         stop = asyncio.wait_for(_start_a(self), timeout=5.0)
 
         try:
-            asyncio.get_event_loop().run_until_complete(stop)
+            async_loop.get_event_loop().run_until_complete(stop)
             util.refresh()
         except asyncio.TimeoutError:
             raise RuntimeError(f"Could not start server at {self.host}:{self.port}")

@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "pribambase"
-version = "3.0.3"
+version = "3.0.4"
 name = "Pribambase"
 tagline = "Paint pixel-art textures in Blender using Aseprite"
 maintainer = "Iken-O"
@@ -28,6 +28,7 @@ wheels = [
   "./wheels/aiohttp-3.13.5-cp311-cp311-win_amd64.whl",
   "./wheels/aiohttp-3.13.5-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
   "./wheels/aiohttp-3.13.5-cp313-cp313-win_amd64.whl",
+  "./wheels/aiohttp-3.13.5-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
   "./wheels/aiosignal-1.4.0-py3-none-any.whl",
   "./wheels/async_timeout-5.0.1-py3-none-any.whl",
   "./wheels/attrs-26.1.0-py3-none-any.whl",
@@ -35,20 +36,24 @@ wheels = [
   "./wheels/frozenlist-1.8.0-cp311-cp311-win_amd64.whl",
   "./wheels/frozenlist-1.8.0-cp313-cp313-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl",
   "./wheels/frozenlist-1.8.0-cp313-cp313-win_amd64.whl",
+  "./wheels/frozenlist-1.8.0-cp314-cp314-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl",
   "./wheels/idna-3.15-py3-none-any.whl",
   "./wheels/multidict-6.7.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
   "./wheels/multidict-6.7.1-cp311-cp311-win_amd64.whl",
   "./wheels/multidict-6.7.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
   "./wheels/multidict-6.7.1-cp313-cp313-win_amd64.whl",
+  "./wheels/multidict-6.7.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
   "./wheels/propcache-0.5.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
   "./wheels/propcache-0.5.2-cp311-cp311-win_amd64.whl",
   "./wheels/propcache-0.5.2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
   "./wheels/propcache-0.5.2-cp313-cp313-win_amd64.whl",
+  "./wheels/propcache-0.5.2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
   "./wheels/typing_extensions-4.15.0-py3-none-any.whl",
   "./wheels/yarl-1.23.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
   "./wheels/yarl-1.23.0-cp311-cp311-win_amd64.whl",
   "./wheels/yarl-1.23.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
   "./wheels/yarl-1.23.0-cp313-cp313-win_amd64.whl",
+  "./wheels/yarl-1.23.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
 ]
 
 [permissions]

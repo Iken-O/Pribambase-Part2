@@ -5,6 +5,7 @@ import webbrowser
 import asyncio
 from subprocess import Popen
 
+from . import async_loop
 from .addon import addon
 
 ASEPRITE_EXTENSION_URL = "https://github.com/Iken-O/Pribambase-Part2/releases"
@@ -38,7 +39,6 @@ class SB_OT_launch(bpy.types.Operator):
 
     def execute(self, context):
         exe = addon.prefs.executable or addon.prefs.executable_auto
-        print(addon.prefs.executable_auto)
         if not exe:
             self.report({'ERROR'}, "Please specify a valid path to aseprite exe/app in addon settings.")
             return {'CANCELLED'}
@@ -57,7 +57,7 @@ class SB_OT_launch(bpy.types.Operator):
                 # appears and doesn't connect to anything
                 try:
                     wait = asyncio.wait_for(addon.server.ev_connect.wait(), timeout=0.1)
-                    asyncio.get_event_loop().run_until_complete(wait)
+                    async_loop.get_event_loop().run_until_complete(wait)
                     return {'FINISHED'}
                 except asyncio.TimeoutError:
                     pass # it's okay
@@ -72,7 +72,7 @@ class SB_OT_launch(bpy.types.Operator):
         if self.wait_connect:
             try:
                 wait = asyncio.wait_for(addon.server.ev_connect.wait(), timeout=5.0)
-                asyncio.get_event_loop().run_until_complete(wait)
+                async_loop.get_event_loop().run_until_complete(wait)
             except asyncio.TimeoutError:
                 self.report({'ERROR'}, "Aseprite takes too long to start...")
                 return {'CANCELLED'}
